@@ -43,6 +43,8 @@ symlinks.
 
 ## Quickstart
 
+Needs `bash` and Node.js 18 or newer. Nothing to install beyond that.
+
 ```sh
 git clone git@github.com:souyahia/dotagents.git
 cd dotagents
@@ -197,4 +199,8 @@ updates to the tool without touching your content.
 | `./install.sh --force` | replaces entries dotagents did not create, backing up real files |
 | `./install.sh --no-build` | installs the existing `dist/` instead of rebuilding it first |
 
-Requires `bash` and `python3`.
+## Requirements
+
+`bash` and **Node.js 18 or newer** on your `PATH`. There is nothing to install
+beyond that: the scripts use only the Node standard library, so there is no
+`package.json`, no dependencies and no `npm install` step.

@@ -165,12 +165,13 @@ install_instruction_link() {
   install_link "$DIST/instructions.md" "$target_path"
 }
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "error: python3 is required but was not found on PATH" >&2
+if ! command -v node >/dev/null 2>&1; then
+  echo "error: node is required but was not found on PATH" >&2
+  echo "dotagents needs Node.js 18 or newer" >&2
   exit 1
 fi
 
-TARGETS="$(python3 "$REPO_DIR/lib/targets.py" --home "$DOTAGENTS_HOME")"
+TARGETS="$(node "$REPO_DIR/lib/targets.mjs" --home "$DOTAGENTS_HOME")"
 
 HAS_INSTRUCTION_HEADER=false
 
