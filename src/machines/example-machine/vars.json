@@ -1,0 +1,4 @@
+{
+  "BRANCH_PREFIX": "example",
+  "REVIEW_EXTRA_INSTRUCTIONS": "Tag the release after merging, releases here ship from tags."
+}

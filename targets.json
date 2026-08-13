@@ -1,0 +1,12 @@
+{
+  "skills": [
+    "~/.agents/skills",
+    "~/.claude/skills",
+    "~/.codex/skills"
+  ],
+  "instructions": [
+    "~/.claude/CLAUDE.md",
+    "~/.codex/AGENTS.md",
+    "~/.codex/instructions.md"
+  ]
+}
