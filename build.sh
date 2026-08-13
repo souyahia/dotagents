@@ -2,8 +2,12 @@
 #
 # Renders the dotagents source tree into dist/.
 #
-# This script never touches anything outside DOTAGENTS_HOME, so it is always
-# safe to run. Use ./install.sh to wire dist/ into your agent config dirs.
+# Writes nothing outside DOTAGENTS_HOME, so it is always safe to run. It does
+# read the install targets to warn when a built skill is linked nowhere; pass
+# --no-link-check to skip that.
+#
+# Use ./install.sh to wire dist/ into your agent config dirs, and again whenever
+# a skill is added or removed.
 
 set -euo pipefail
 

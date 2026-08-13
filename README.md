@@ -28,18 +28,23 @@ of a file.
 ## How it works
 
 ```
-./install.sh    src/ -> dist/ -> every path in targets.json    once, on a fresh clone
-./build.sh      src/ -> dist/                                  after every edit
+./install.sh    src/ -> dist/ -> every path in targets.json    when the set of skills changes
+./build.sh      src/ -> dist/                                  when their content changes
 ```
 
 `src/` is what you edit. The build resolves the active machine, merges that
 machine's variables over the shared defaults, renders the tree, and writes
-`dist/`. It touches nothing outside the repository, so it is always safe to run.
+`dist/`. It writes nothing outside the repository, so it is always safe to run.
 
 `install.sh` builds and then symlinks `dist/` into the declared targets, so a
-fresh clone needs nothing else. Afterwards, everytime you edit the `src/`
-directory, you only run `build.sh` and your agentic configs are updated through
-symlinks.
+fresh clone needs nothing else.
+
+Each target holds one symlink per skill, not a single link to the skills
+directory. Editing a skill therefore needs only `build.sh`, because its link
+already exists and resolves into `dist/`. Adding or removing one needs
+`install.sh` again, to create or prune that skill's link. You do not have to
+remember which case you are in: `build.sh` warns when a skill it just built has
+nothing pointing at it.
 
 ## Quickstart
 
@@ -56,7 +61,9 @@ mkdir -p src/machines/my-laptop      # custom configuration for this machine
 ./install.sh
 ```
 
-Then put your skills in `src/skills/<name>/SKILL.md` and run `./build.sh`.
+Then put your skills in `src/skills/<name>/SKILL.md` and run `./install.sh`, so
+each new skill gets its symlink. Once a skill exists, `./build.sh` picks up your
+edits to it.
 
 ## Layout
 
@@ -124,6 +131,10 @@ Shared skills live in `src/skills/`. A skill in `src/machines/<id>/skills/` with
 the same name replaces the shared one entirely on that machine; with a new name,
 it exists only on that machine.
 
+Adding or deleting a skill changes the set of symlinks each target needs, so run
+`./install.sh` rather than `./build.sh` after either. It creates the links that
+are missing and prunes the ones whose skill is gone.
+
 ## Install targets
 
 `targets.json` declares where the build gets linked:
@@ -165,10 +176,11 @@ would have to install before this one worked at all. Polling on a timer would
 work, but it is a background process running forever to serve edits you make a
 few times a month.
 
-So you run `./build.sh` when you change something. Agents that watch their skills
-directory pick the result up on their own. Claude Code "picks up the change
-within the current session, without a restart", and Codex "detects skill changes
-automatically. If an update doesn't appear, restart Codex."
+So you run `./build.sh` when you change a skill's content, and `./install.sh`
+when you add or remove one. Agents that watch their skills directory pick the
+result up on their own. Claude Code "picks up the change within the current
+session, without a restart", and Codex "detects skill changes automatically. If
+an update doesn't appear, restart Codex."
 
 One caveat no tool can work around: a skill **already invoked in the current
 session** keeps the copy loaded in context, so editing it and invoking it again
@@ -193,7 +205,8 @@ updates to the tool without touching your content.
 
 | Command | What it does |
 | :--- | :--- |
-| `./build.sh` | renders `src/` into `dist/`, touching nothing outside `DOTAGENTS_HOME` |
+| `./build.sh` | renders `src/` into `dist/`, writing nothing outside `DOTAGENTS_HOME` |
+| `./build.sh --no-link-check` | renders without warning about built skills that are linked nowhere |
 | `./install.sh` | builds, then symlinks `dist/` into every applicable target |
 | `./install.sh --dry-run` | builds, then prints what it would link without touching anything outside the repository |
 | `./install.sh --force` | replaces entries dotagents did not create, backing up real files |

@@ -3,8 +3,10 @@
 # Builds the source tree, then symlinks dist/ into every directory declared in
 # targets.json. A fresh clone only needs this script.
 #
-# Run it once. After that, ./build.sh is enough: the symlinks keep pointing at
-# the same paths, so the agents reading them see the new content.
+# Re-run it whenever a skill is added or removed. Each target holds one symlink
+# per skill, so a new skill has nothing pointing at it until this runs. Editing
+# an existing skill needs only ./build.sh, because its link already resolves
+# into dist/. Re-running is safe: links that are already correct are left alone.
 
 set -euo pipefail
 
@@ -49,7 +51,7 @@ fi
 
 if [ "$SHOULD_BUILD" = true ]; then
   echo "building"
-  DOTAGENTS_HOME="$DOTAGENTS_HOME" "$REPO_DIR/build.sh" | sed 's/^/  /'
+  DOTAGENTS_HOME="$DOTAGENTS_HOME" "$REPO_DIR/build.sh" --no-link-check | sed 's/^/  /'
   echo
 fi
 
@@ -196,4 +198,4 @@ if [ "$HAS_INSTRUCTION_HEADER" = true ]; then
   echo
 fi
 
-echo "done. re-run ./build.sh after editing src/, the links stay valid."
+echo "done. ./build.sh is enough after editing a skill, re-run this one when you add or remove one."
