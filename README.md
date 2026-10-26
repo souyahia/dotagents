@@ -1,8 +1,8 @@
 # dotagents
 
-dotagents keeps your agent skills and global instructions in a single source
-tree, renders them for the machine you are currently on, and symlinks the result
-into whichever directories your tools read.
+dotagents keeps your agent skills, global instructions and hooks in a single
+source tree, renders them for the machine you are currently on, and installs
+the result wherever your tools read it.
 
 It exists so one repository can serve several computers without the machines
 having to be identical. A branch prefix that differs between machines, a skill
@@ -22,22 +22,25 @@ of a file.
 - **Installs anywhere.** The directories it links into are declared in
   `targets.json`. Any tool that reads skills from a directory is supported by
   adding a line.
+- **Installs hooks.** Each hook declares the tools it deploys to, Claude Code
+  or Codex, and install merges it into their config without touching the hooks
+  other tools added there.
 - **Fails loudly.** A variable with no value stops the build and names the file
   and line, so a typo can never silently delete an instruction.
 
 ## How it works
 
 ```
-./install.sh    src/ -> dist/ -> every path in targets.json    when the set of skills changes
-./build.sh      src/ -> dist/                                  when their content changes
+./install.sh    src/ -> dist/ -> every path in targets.json    when a skill or hook is added or removed, or a hook.json changes
+./build.sh      src/ -> dist/                                  when anything else changes
 ```
 
 `src/` is what you edit. The build resolves the active machine, merges that
 machine's variables over the shared defaults, renders the tree, and writes
 `dist/`. It writes nothing outside the repository, so it is always safe to run.
 
-`install.sh` builds and then symlinks `dist/` into the declared targets, so a
-fresh clone needs nothing else.
+`install.sh` builds, then symlinks `dist/` into the declared targets and merges
+the hooks into each tool's config, so a fresh clone needs nothing else.
 
 Each target holds one symlink per skill, not a single link to the skills
 directory. Editing a skill therefore needs only `build.sh`, because its link
@@ -68,11 +71,12 @@ edits to it.
 ## Layout
 
 ```
-targets.json                   where dist/ gets symlinked
+targets.json                   where dist/ gets installed
 src/
   instructions.md              shared global instructions
   vars.default.json            declares every variable and its default
   skills/<name>/SKILL.md       shared skills
+  hooks/<name>/hook.json       a hook's entries for each tool, beside its scripts
   machines/<id>/
     vars.json                  this machine's variable overrides
     instructions.md            appended to the shared instructions
@@ -135,9 +139,54 @@ Adding or deleting a skill changes the set of symlinks each target needs, so run
 `./install.sh` rather than `./build.sh` after either. It creates the links that
 are missing and prunes the ones whose skill is gone.
 
+## Hooks
+
+Each hook lives in `src/hooks/<name>/`, beside the scripts it runs. Its
+`hook.json` has one key per tool it deploys to, `claude` or `codex`, holding
+exactly what would go under `hooks` in that tool's config. A command reaches
+the scripts through `${DOTAGENTS_HOOK_DIR}`, which install replaces with the
+absolute path of the hook's folder in `dist/hooks/`.
+
+```json
+{
+  "claude": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${DOTAGENTS_HOOK_DIR}/stop.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Matchers use each tool's own tool names, so a hook deployed to both tools
+usually needs different entries under each key.
+
+Tools rewrite their config files themselves and other tools add their own hooks
+to them, so a config file cannot be a symlink into `dist/`. Install merges
+instead. Hooks whose command runs something from `dist/` belong to dotagents.
+Install replaces them with the ones just built, drops the ones no `hook.json`
+declares anymore, and leaves every other hook and setting as it found them.
+
+Editing a script needs only `./build.sh`, because the config already points at
+its copy in `dist/`. Adding or removing a hook, or editing a `hook.json`, needs
+`./install.sh`, and `build.sh` warns when a config file is out of date with the
+hooks it just built.
+
+Codex only runs a hook after you approve its exact definition in `/hooks`, and
+asks again after every change. Install leaves that approval to you.
+
+Hooks have no machine layer. Every machine gets the same ones, and a machine
+that should get none leaves `hooks` out of its `targets.local.json`.
+
 ## Install targets
 
-`targets.json` declares where the build gets linked:
+`targets.json` declares where the build gets installed:
 
 ```json
 {
@@ -147,14 +196,23 @@ are missing and prunes the ones whose skill is gone.
   ],
   "instructions": [
     "~/.claude/CLAUDE.md"
-  ]
+  ],
+  "hooks": {
+    "claude": [
+      "~/.claude/settings.json"
+    ],
+    "codex": [
+      "~/.codex/hooks.json"
+    ]
+  }
 }
 ```
 
 A `skills` target is a directory that receives one symlink per built skill. An
 `instructions` target is a single symlink to the rendered instructions file, so
-the path includes the filename the tool expects. `~` and `$VARIABLES` are
-expanded.
+the path includes the filename the tool expects. A `hooks` entry lists, for
+each tool, the config files its hooks are merged into. `~` and `$VARIABLES`
+are expanded.
 
 Everything listed is installed, and missing directories are created. When a
 machine needs a different set, an uncommitted `targets.local.json` replaces
@@ -164,7 +222,8 @@ The defaults cover Claude Code and Codex. Adding another tool means adding the
 directory it reads.
 
 `install.sh` never overwrites anything it did not create. Entries belonging to
-something else are reported and skipped, and `--force` backs them up first.
+something else are reported and skipped, and `--force` backs them up first. In
+a tool's config file, the only entries it ever replaces are its own hooks.
 
 ## Why the build is manual
 
@@ -206,9 +265,9 @@ updates to the tool without touching your content.
 | Command | What it does |
 | :--- | :--- |
 | `./build.sh` | renders `src/` into `dist/`, writing nothing outside `DOTAGENTS_HOME` |
-| `./build.sh --no-link-check` | renders without warning about built skills that are linked nowhere |
-| `./install.sh` | builds, then symlinks `dist/` into every applicable target |
-| `./install.sh --dry-run` | builds, then prints what it would link without touching anything outside the repository |
+| `./build.sh --no-link-check` | renders without warning about built skills linked nowhere or hooks not yet installed |
+| `./install.sh` | builds, then symlinks `dist/` into every applicable target and merges the hooks into each tool's config files |
+| `./install.sh --dry-run` | builds, then prints what it would link or update without touching anything outside the repository |
 | `./install.sh --force` | replaces entries dotagents did not create, backing up real files |
 | `./install.sh --no-build` | installs the existing `dist/` instead of rebuilding it first |
 

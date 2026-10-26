@@ -1,0 +1,30 @@
+{
+  "claude": {
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${DOTAGENTS_HOOK_DIR}/on-question.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "codex": {
+    "PreToolUse": [
+      {
+        "matcher": "^request_user_input$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${DOTAGENTS_HOOK_DIR}/on-question.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,5 +8,13 @@
     "~/.claude/CLAUDE.md",
     "~/.codex/AGENTS.md",
     "~/.codex/instructions.md"
-  ]
+  ],
+  "hooks": {
+    "claude": [
+      "~/.claude/settings.json"
+    ],
+    "codex": [
+      "~/.codex/hooks.json"
+    ]
+  }
 }

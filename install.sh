@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 #
 # Builds the source tree, then symlinks dist/ into every directory declared in
-# targets.json. A fresh clone only needs this script.
+# targets.json and merges the hooks into each declared tool config file. A
+# fresh clone only needs this script.
 #
 # Re-run it whenever a skill is added or removed. Each target holds one symlink
 # per skill, so a new skill has nothing pointing at it until this runs. Editing
 # an existing skill needs only ./build.sh, because its link already resolves
-# into dist/. Re-running is safe: links that are already correct are left alone.
+# into dist/. The same goes for src/hooks/: a script edit needs only ./build.sh,
+# adding or removing a hook or editing a hook.json needs this. Re-running is
+# safe: links and hooks that are already correct are left alone.
 
 set -euo pipefail
 
@@ -167,6 +170,16 @@ install_instruction_link() {
   install_link "$DIST/instructions.md" "$target_path"
 }
 
+install_hooks_into() {
+  local tool="$1" config_path="$2"
+
+  if [ "$IS_DRY_RUN" = true ]; then
+    node "$REPO_DIR/lib/install-hooks.mjs" --home "$DOTAGENTS_HOME" --tool "$tool" --file "$config_path" --dry-run
+  else
+    node "$REPO_DIR/lib/install-hooks.mjs" --home "$DOTAGENTS_HOME" --tool "$tool" --file "$config_path"
+  fi
+}
+
 if ! command -v node >/dev/null 2>&1; then
   echo "error: node is required but was not found on PATH" >&2
   echo "dotagents needs Node.js 18 or newer" >&2
@@ -176,8 +189,9 @@ fi
 TARGETS="$(node "$REPO_DIR/lib/targets.mjs" --home "$DOTAGENTS_HOME")"
 
 HAS_INSTRUCTION_HEADER=false
+HAS_HOOKS_HEADER=false
 
-while IFS=$'\t' read -r kind path; do
+while IFS=$'\t' read -r kind path tool; do
   [ -n "$kind" ] || continue
 
   case "$kind" in
@@ -191,11 +205,21 @@ while IFS=$'\t' read -r kind path; do
     fi
     install_instruction_link "$path"
     ;;
+  hooks)
+    if [ "$HAS_HOOKS_HEADER" = false ]; then
+      if [ "$HAS_INSTRUCTION_HEADER" = true ]; then
+        echo
+      fi
+      echo "hooks"
+      HAS_HOOKS_HEADER=true
+    fi
+    install_hooks_into "$tool" "$path"
+    ;;
   esac
 done <<<"$TARGETS"
 
-if [ "$HAS_INSTRUCTION_HEADER" = true ]; then
+if [ "$HAS_INSTRUCTION_HEADER" = true ] || [ "$HAS_HOOKS_HEADER" = true ]; then
   echo
 fi
 
-echo "done. ./build.sh is enough after editing a skill, re-run this one when you add or remove one."
+echo "done. ./build.sh is enough after editing a skill or a hook script, re-run this one when you add or remove a skill or a hook, or edit a hook.json."
